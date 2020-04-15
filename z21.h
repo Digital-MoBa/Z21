@@ -1,8 +1,6 @@
 /*
   z21.h - library for Z21 mobile protocoll
-  Copyright (c) 2013-2019 Philipp Gahtow  All right reserved.
-
-  Version 2.6
+  Copyright (c) 2013-2020 Philipp Gahtow  All right reserved.
 
   ROCO Z21 LAN Protocol for Arduino.
   

@@ -1,7 +1,7 @@
 /*
 *****************************************************************************
   *		z21.cpp - library for Roco Z21 LAN protocoll
-  *		Copyright (c) 2013-2019 Philipp Gahtow  All right reserved.
+  *		Copyright (c) 2013-2020 Philipp Gahtow  All right reserved.
   *
   *
 *****************************************************************************
