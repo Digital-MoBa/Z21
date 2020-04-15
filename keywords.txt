@@ -1,0 +1,50 @@
+# Datatypes (KEYWORD1)
+
+Z21Class				KEYWORD1
+
+
+# Methods and Functions (KEYWORD2)
+
+receive					KEYWORD2
+setPower				KEYWORD2
+getPower				KEYWORD2
+setCVPOMBYTE				KEYWORD2
+setLocoStateExt				KEYWORD2
+getz21BcFlag				KEYWORD2
+setLNDetector				KEYWORD2
+setLNMessage				KEYWORD2
+setCANDetector				KEYWORD2
+setTrntInfo				KEYWORD2
+setCVReturn				KEYWORD2
+setCVNack				KEYWORD2
+setCVNAckSC				KEYWORD2
+sendSystemInfo				KEYWORD2
+
+notifyz21getSystemInfo			KEYWORD2
+notifyz21EthSend			KEYWORD2
+notifyz21LNdetector			KEYWORD2
+notifyz21LNdispatch			KEYWORD2
+notifyz21LNSendPacket			KEYWORD2
+notifyz21CANdetector			KEYWORD2
+notifyz21RailPower			KEYWORD2
+notifyz21CVREAD				KEYWORD2
+notifyz21CVWRITE			KEYWORD2
+notifyz21CVPOMWRITEBYTE			KEYWORD2
+notifyz21CVPOMWRITEBIT			KEYWORD2
+notifyz21CVPOMREADBYTE			KEYWORD2
+notifyz21AccessoryInfo			KEYWORD2
+notifyz21Accessory			KEYWORD2
+notifyz21LocoState			KEYWORD2
+notifyz21LocoFkt			KEYWORD2
+notifyz21LocoSpeed			KEYWORD2
+notifyz21S88Data			KEYWORD2
+notifyz21Railcom			KEYWORD2
+notifyz21UpdateConf			KEYWORD2
+
+# Constants (LITERAL1)
+
+csNormal				LITERAL1
+csEmergencyStop				LITERAL1
+csTrackVoltageOff			LITERAL1
+csShortCircuit				LITERAL1
+csServiceMode				LITERAL1
