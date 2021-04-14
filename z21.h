@@ -1,13 +1,13 @@
 /*
   z21.h - library for Z21 mobile protocoll
-  Copyright (c) 2013-2020 Philipp Gahtow  All right reserved.
+  Copyright (c) 2013-2021 Philipp Gahtow  All right reserved.
 
   ROCO Z21 LAN Protocol for Arduino.
   
   Notice:
 	- analyse the data and give back the content and a answer
 
-  Grundlage: Z21 LAN Protokoll Spezifikation V1.09
+  Grundlage: Z21 LAN Protokoll Spezifikation V1.10
 
   Änderungen:
 	- 23.09.15 Anpassung LAN_LOCONET_DETECTOR
@@ -29,6 +29,13 @@
 	- 22.10.18 add loco busy return
 	- 02.11.18 adjust returnLocoStateFull with addition non broadcast when requestion only information
 	- 04.11.18 fix EthSend handel of message with client == 0 and Broadcast with client and without
+	- 10.05.20 add message LAN_GET_LOCOMODE and LAN_GET_TURNOUTMODE
+	- 04.08.20 fix POM set CV result
+	- 17.12.20 add support for ESP32 and adjust ESP8266
+	- 01.03.21 set default EEPROM MainV and ProgV to 20V
+	- 03.03.21 add new Z21 spezifications v1.10
+	- 21.03.21 add request for client identification (ip-hash) and store this plus BC-Flag in EEPROM
+	- 30.03-21 fix connecting problem WDP with reporting railpower when request status
 */
 
 // include types & constants of Wiring core API
@@ -50,23 +57,34 @@
 //**************************************************************
 //Firmware-Version der Z21:
 #define z21FWVersionMSB 0x01
-#define z21FWVersionLSB 0x32
+#define z21FWVersionLSB 0x40
 /*
-HwType: #define D_HWT_Z21_OLD 0x00000200 // „schwarze Z21” (Hardware-Variante ab 2012) 
-		#define D_HWT_Z21_NEW 0x00000201 // „schwarze Z21”(Hardware-Variante ab 2013) 
-		#define D_HWT_SMARTRAIL 0x00000202 // SmartRail (ab 2012) 
-		#define D_HWT_z21_SMALL 0x00000203 // „weiße z21” Starterset-Variante (ab 2013) 
-		#define D_HWT_z21_START 0x00000204 // „z21 start” Starterset-Variante (ab 2016) 
+HwType:
+#define D_HWT_Z21_OLD 0x00000200 // „schwarze Z21” (Hardware-Variante ab 2012)
+#define D_HWT_Z21_NEW 0x00000201 // „schwarze Z21”(Hardware-Variante ab 2013)
+#define D_HWT_SMARTRAIL 0x00000202 // SmartRail (ab 2012)
+#define D_HWT_z21_SMALL 0x00000203 // „weiße z21” Starterset-Variante (ab 2013)
+#define D_HWT_z21_START 0x00000204 // „z21 start” Starterset-Variante (ab 2016) 
+#define D_HWT_Z21_XL 0x00000211 // 10870 „Z21 XL Series” (ab 2020) 
+#define D_HWT_SINGLE_BOOSTER 0x00000205 // 10806 „Z21 Single Booster” (zLink) 
+#define D_HWT_DUAL_BOOSTER 0x00000206 // 10807 „Z21 Dual Booster” (zLink) 
+#define D_HWT_Z21_SWITCH_DECODER 0x00000301 // 10836 „Z21 SwitchDecoder” (zLink) 
+#define D_HWT_Z21_SIGNAL_DECODER 0x00000302 // 10836 „Z21 SignalDecoder” (zLink)
 */
-//Hardware-Typ: 0x00000201 // Z21 (Hardware-Variante ab 2013)
+//Hardware-Typ: 0x00000211 // 10870 „Z21 XL Series” (ab 2020) 
 #define z21HWTypeMSB 0x02
-#define z21HWTypeLSB 0x01
-//Seriennummer:
-#define z21SnMSB 0x1A
-#define z21SnLSB 0xF5
+#define z21HWTypeLSB 0x11
+//Seriennummer inside EEPROM:
+#define CONFz21SnMSB 0		//0x01
+#define CONFz21SnLSB 1		//0xE8
+//**************************************************************
 //Store Z21 configuration inside EEPROM:
 #define CONF1STORE 50 	//(10x Byte)	- Prog, RailCom, etc.
 #define CONF2STORE 60	//(15x Byte)	- Voltage: Prog, Rail, etc.
+#define CLIENTINDEXSTORE 99			//Index Byte of last free BC-Flag slot
+#define CLIENTSTORELENGTH 50		//Length of Client Broadcast-Flag store
+#define CLIENTHASHSTORE 100			//Start where Client-Hash is stored
+
 //--------------------------------------------------------------
 //certain global XPressnet status indicators:
 #define csNormal 0x00 			// Normal Operation Resumed ist eingeschaltet
@@ -116,13 +134,14 @@ class z21Class
 	
 	void setS88Data(byte *data);	//return state of S88 sensors
 
-	void setLNDetector(byte *data, byte DataLen);	//return state from LN detector
+	void setLNDetector(uint8_t client, byte *data, byte DataLen);	//return state from LN detector
 	void setLNMessage(byte *data, byte DataLen, byte bcType, bool TX);	//return LN Message
 	
 	void setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2); //state from CAN detector
 
-
 	void setTrntInfo(uint16_t Adr, bool State); //Return the state of accessory
+	
+	void setExtACCInfo(uint16_t Adr, byte State, bool Status = 0x00);	//Return EXT Accessory INFO
 	
 	void setCVReturn (uint16_t CV, uint8_t value);	//Return CV Value for Programming
 	void setCVNack();	//Return no ACK from Decoder
@@ -150,6 +169,10 @@ class z21Class
 	void setOtherSlotBusy(byte slot);
 	void addBusySlot (byte client, uint16_t adr);
 	void reqLocoBusy (uint16_t adr);
+	
+	byte getEEPROMBCFlagIndex();		//return the length of BC-Flag store
+	void setEEPROMBCFlag(byte IPHash, byte BCFlag);		//add BC-Flag to store
+	byte findEEPROMBCFlag(byte IPHash);		//read the BC-Flag for this client
 
 };
 
@@ -161,11 +184,11 @@ class z21Class
 	
 	extern void notifyz21EthSend(uint8_t client, uint8_t *data) __attribute__((weak));
 
-	extern void notifyz21LNdetector(uint8_t typ, uint16_t Adr) __attribute__((weak));
+	extern void notifyz21LNdetector(uint8_t client, uint8_t typ, uint16_t Adr) __attribute__((weak));
 	extern uint8_t notifyz21LNdispatch(uint16_t Adr) __attribute__((weak));
 	extern void notifyz21LNSendPacket(uint8_t *data, uint8_t length) __attribute__((weak));
 	
-	extern void notifyz21CANdetector(uint8_t typ, uint16_t ID) __attribute__((weak));
+	extern void notifyz21CANdetector(uint8_t client, uint8_t typ, uint16_t ID) __attribute__((weak));
 	
 	extern void notifyz21RailPower(uint8_t State ) __attribute__((weak));
 	
@@ -178,6 +201,8 @@ class z21Class
 	extern uint8_t notifyz21AccessoryInfo(uint16_t Adr) __attribute__((weak));
 	extern void notifyz21Accessory(uint16_t Adr, bool state, bool active) __attribute__((weak));
 	
+	extern void notifyz21ExtAccessory(uint16_t Adr, byte state) __attribute__((weak));
+		
 	extern void notifyz21LocoState(uint16_t Adr, uint8_t data[]) __attribute__((weak));
 	extern void notifyz21LocoFkt(uint16_t Adr, uint8_t type, uint8_t fkt) __attribute__((weak));
 	extern void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps) __attribute__((weak));
@@ -187,6 +212,8 @@ class z21Class
 	extern uint16_t notifyz21Railcom() __attribute__((weak));	//return global Railcom Adr
 	
 	extern void notifyz21UpdateConf() __attribute__((weak)); //information for DCC via EEPROM (RailCom, ProgMode,...)
+	
+	extern uint8_t requestz21ClientHash(uint8_t client) __attribute__((weak));
 
 #if defined (__cplusplus)
 }

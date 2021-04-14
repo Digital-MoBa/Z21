@@ -38,6 +38,8 @@
 #define LAN_X_GET_TURNOUT_INFO       0x43 
 #define LAN_X_SET_TURNOUT            0x53
 #define LAN_X_TURNOUT_INFO           0x43 
+#define LAN_X_SET_EXT_ACCESSORY		 0x54	//new: 1.10
+#define LAN_X_GET_EXT_ACCESSORY_INFO 0x44	//new: 1.10
 #define LAN_X_CV_READ                0x23
 #define LAN_X_CV_WRITE               0x24
 #define LAN_X_CV_NACK_SC             0x61

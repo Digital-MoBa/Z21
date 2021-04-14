@@ -1,7 +1,7 @@
 /*
 *****************************************************************************
   *		z21.cpp - library for Roco Z21 LAN protocoll
-  *		Copyright (c) 2013-2020 Philipp Gahtow  All right reserved.
+  *		Copyright (c) 2013-2021 Philipp Gahtow  All right reserved.
   *
   *
 *****************************************************************************
@@ -24,7 +24,7 @@ DueFlashStorage FlashStore;
 // AVR based Boards follows
 #include <EEPROM.h>
 #define FSTORAGE 	EEPROM
-	#if defined(ARDUINO_ESP8266_ESP01) || defined(ARDUINO_ESP8266_WEMOS_D1MINI) //ESP8266 or WeMos
+	#if defined(ESP8266) || defined(ESP32) //ESP8266 or ESP32
 		#define FSTORAGEMODE write
 	#else
 		#define FSTORAGEMODE update
@@ -53,14 +53,18 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 	// send a reply, to the IP address and port that sent us the packet we received
 	int header = (packet[3]<<8) + packet[2];
 	byte data[16]; 			//z21 send storage
+	
+	#if defined(ESP32)
+	portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+	#endif		
 		
 	switch (header) {
 		case LAN_GET_SERIAL_NUMBER:
 		  #if defined(SERIALDEBUG)
 		  ZDebug.println("GET_SERIAL_NUMBER");  
 		  #endif
-		  data[0] = z21SnLSB;
-		  data[1] = z21SnMSB;
+		  data[0] = FSTORAGE.read(CONFz21SnLSB);
+		  data[1] = FSTORAGE.read(CONFz21SnMSB);
 		  data[2] = 0x00; 
 		  data[3] = 0x00;
 		  EthSend(client, 0x08, LAN_GET_SERIAL_NUMBER, data, false, Z21bcNone); //Seriennummer 32 Bit (little endian)
@@ -123,6 +127,11 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			case 0x80:
 			  #if defined(SERIALDEBUG)
 			  ZDebug.println("X_SET_TRACK_POWER_OFF");
+			  
+			  data[0] = LAN_X_BC_TRACK_POWER;
+			  data[1] = 0x00;
+			  EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
+			  
 			  #endif
 			  if (notifyz21RailPower)
 				notifyz21RailPower(csTrackVoltageOff);
@@ -131,8 +140,14 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			  #if defined(SERIALDEBUG)
 			  ZDebug.println("X_SET_TRACK_POWER_ON");
 			  #endif
+			  
+			  data[0] = LAN_X_BC_TRACK_POWER;
+			  data[1] = 0x01;
+			  EthSend(client, 0x07, LAN_X_Header, data, true, Z21bcNone);
+			  
 			  if (notifyz21RailPower)
 				notifyz21RailPower(csNormal);
+				
 			  break;  
 			}
 			//---------------------- Switch DB0 ENDE ---------------------------	
@@ -216,6 +231,26 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			if (notifyz21Accessory) {
 				notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
 			}						//	Addresse					Links/Rechts			Spule EIN/AUS
+			break;  
+		  }
+		  case LAN_X_SET_EXT_ACCESSORY: {
+			#if defined(SERIALDEBUG)
+			ZDebug.print("X_SET_EXT_ACCESSORY RAdr.:");
+			ZDebug.print((packet[5] << 8) + packet[6]);
+			ZDebug.print(":0x");
+			ZDebug.println(packet[7], HEX);
+			#endif
+			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+			break;
+		  }
+		  case LAN_X_GET_EXT_ACCESSORY_INFO: {
+			#if defined(SERIALDEBUG)
+			ZDebug.print("X_EXT_ACCESSORY_INFO RAdr.:");
+			ZDebug.print((packet[5] << 8) + packet[6]);
+			ZDebug.print(":0x");
+			ZDebug.println(packet[7], HEX);	//DB2 Reserviert für zukünftige Erweiterungen
+			#endif  
+			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
 			break;  
 		  }
 		  case LAN_X_SET_STOP:
@@ -320,12 +355,30 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			break;
 		  }
 		case (LAN_GET_LOCOMODE):
+			/*
+			In der Z21 kann das Ausgabeformat (DCC, MM) pro Lok-Adresse persistent gespeichert werden. 
+			Es können maximal 256 verschiedene Lok-Adressen abgelegt werden. Jede Adresse >= 256 ist automatisch DCC.
+			*/
+			data[0] = packet[4];
+			data[1] = packet[5];
+			data[2] = 0;	//0=DCC Format; 1=MM Format
+			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 		break;
 		case (LAN_SET_LOCOMODE):
+			//nothing to replay all DCC Format
 		break;
 		case (LAN_GET_TURNOUTMODE):
+			/*
+			In der Z21 kann das Ausgabeformat (DCC, MM) pro Funktionsdecoder-Adresse persistent gespeichert werden. 
+			Es können maximal 256 verschiedene Funktionsdecoder -Adressen gespeichert werden. Jede Adresse >= 256 ist automatisch DCC.
+			*/
+			data[0] = packet[4];
+			data[1] = packet[5];
+			data[2] = 0;	//0=DCC Format; 1=MM Format
+			EthSend (client, 0x07, LAN_GET_LOCOMODE, data, false, Z21bcNone);
 		break;
 		case (LAN_SET_TURNOUTMODE):
+			//nothing to replay all DCC Format
 		break;
 		case (LAN_RMBUS_GETDATA):
 			  if (notifyz21S88Data) {
@@ -404,7 +457,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				#if defined(SERIALDEBUG)
 					ZDebug.println("LOCONET_DETECTOR Abfrage");
 				#endif
-				notifyz21LNdetector(packet[4], word(packet[6], packet[5]));	//Anforderung Typ & Reportadresse
+				notifyz21LNdetector(client, packet[4], word(packet[6], packet[5]));	//Anforderung Typ & Reportadresse
 			  }
 			break;
 		case (LAN_CAN_DETECTOR):
@@ -412,7 +465,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				#if defined(SERIALDEBUG)
 					ZDebug.println("CAN_DETECTOR Abfrage");
 				#endif
-				notifyz21CANdetector(packet[4], word(packet[6], packet[5]));	//Anforderung Typ & CAN-ID
+				notifyz21CANdetector(client, packet[4], word(packet[6], packet[5]));	//Anforderung Typ & CAN-ID
 			}
 			break;
 		case (0x12): 	//configuration read
@@ -462,9 +515,23 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				}
 				ZDebug.println();
 			#endif
+			
 			for (byte i = 0; i < 10; i++) {
 				FSTORAGE.FSTORAGEMODE(CONF1STORE+i,packet[4+i]);
 			}
+			
+			#if defined(ESP32)
+			portENTER_CRITICAL(&myMutex);
+			#endif
+			
+			#if defined(ESP8266) || defined(ESP32)
+			EEPROM.commit();
+			#endif
+			
+			#if defined(ESP32) 
+			portEXIT_CRITICAL(&myMutex);
+			#endif 
+			
 			//Request DCC to change
 			if (notifyz21UpdateConf)
 				notifyz21UpdateConf();
@@ -473,22 +540,45 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 		case (0x16):  //configuration read
 			//<-- 04 00 16 00 
 			//14 00 16 00 19 06 07 01 05 14 88 13 10 27 32 00 50 46 20 4e 
+			
+			#if defined(ESP32)
+			portENTER_CRITICAL(&myMutex);
+			#endif
+			
 			for (byte i = 0; i < 16; i++) {
 				data[i] = FSTORAGE.read(CONF2STORE+i);
 			}
+						
+			#if defined(ESP32) 
+			portEXIT_CRITICAL(&myMutex);
+			#endif
+			
+			//check range of MainV:
+			if ((word(data[13],data[12]) > 0x59D8) || (word(data[13],data[12]) < 0x2A8F)) {
+				//set to 20V default:
+				data[13] = highByte(0x4e20);
+				data[12] = lowByte(0x4e20);
+			}
+			//check range of ProgV:
+			if ((word(data[15],data[14]) > 0x59D8) || (word(data[15],data[14]) < 0x2A8F)) {
+				//set to 20V default:
+				data[15] = highByte(0x4e20);
+				data[14] = lowByte(0x4e20);
+			}
+			
 			EthSend(client, 0x14, 0x16, data, false, Z21bcNone);
 			#if defined(SERIALDEBUG)
 				ZDebug.print("Z21 Eins(read) ");
 				ZDebug.print("RstP(s): ");
-				ZDebug.print(data[0]);
+				ZDebug.print(data[0]);		//EEPROM Adr 60
 				ZDebug.print(", RstP(f): ");
-				ZDebug.print(data[1]);
+				ZDebug.print(data[1]);		//EEPROM Adr 61
 				ZDebug.print(", ProgP: ");
-				ZDebug.print(data[2]);
+				ZDebug.print(data[2]);		//EEPROM Adr 62
 				ZDebug.print(", MainV: ");
-				ZDebug.print(word(data[13],data[12]));
+				ZDebug.print(word(data[13],data[12]));		//Value only: 11000 - 23000
 				ZDebug.print(", ProgV: ");
-				ZDebug.print(word(data[15],data[14]));
+				ZDebug.print(word(data[15],data[14]));		//Value only: 11000=0x2A8F - 23000=0x59D8
 				ZDebug.println();
 			#endif
 			break;
@@ -508,19 +598,19 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			(0x27) ?
 			(0x32) ?
 			(0x00) ?
-			(0x50) Hauptgleis (LSB) (12-22V)
+			(0x50) Hauptgleis (LSB) (11-23V)
 			(0x46) Hauptgleis (MSB)
-			(0x20) Programmiergleis (LSB) (12-22V): 20V=0x4e20, 21V=0x5208, 22V=0x55F0
+			(0x20) Programmiergleis (LSB) (11-23V): 20V=0x4e20, 21V=0x5208, 22V=0x55F0
 			(0x4e) Programmiergleis (MSB)
 			*/
 			#if defined(SERIALDEBUG)
 				ZDebug.print("Z21 Eins(write) ");
 				ZDebug.print("RstP(s): ");
-				ZDebug.print(packet[4]);
+				ZDebug.print(packet[4]);		//EEPROM Adr 60
 				ZDebug.print(", RstP(f): ");
-				ZDebug.print(packet[5]);
+				ZDebug.print(packet[5]);		//EEPROM Adr 61
 				ZDebug.print(", ProgP: ");
-				ZDebug.print(packet[6]);
+				ZDebug.print(packet[6]);		//EEPROM Adr 62
 				ZDebug.print(", MainV: ");
 				ZDebug.print(word(packet[17],packet[16]));
 				ZDebug.print(", ProgV: ");
@@ -530,6 +620,10 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			for (byte i = 0; i < 16; i++) {
 				FSTORAGE.FSTORAGEMODE(CONF2STORE+i,packet[4+i]);
 			}
+			#if defined(ESP8266) || defined(ESP32)
+			EEPROM.commit();
+			#endif
+			
 			//Request DCC to change
 			if (notifyz21UpdateConf)
 				notifyz21UpdateConf();
@@ -607,12 +701,12 @@ byte z21Class::getPower()
 //return request for POM read byte
 void z21Class::setCVPOMBYTE (uint16_t CVAdr, uint8_t value) {
 	byte data[5]; 
-				data[0] = 0x64; //X-Header
-				data[1] = 0x14; //DB0
-				data[2] = (CVAdr >> 8) & 0x3F;  //CV_MSB;
-				data[3] = CVAdr & 0xFF; //CV_LSB;
-				data[4] = value;
-				EthSend (0, 0x0A, LAN_X_Header, data, true, 0x00);
+	data[0] = 0x64; //X-Header
+	data[1] = 0x14; //DB0
+	data[2] = (CVAdr >> 8) & 0x3F;  //CV_MSB;
+	data[3] = CVAdr & 0xFF; //CV_LSB;
+	data[4] = value;
+	EthSend (0, 0x0A, LAN_X_Header, data, true, Z21bcAll_s);
 }				
 
 
@@ -644,6 +738,7 @@ void z21Class::setLocoStateExt (int Adr)
 	data[8] = (char) ldata[5];  //F21-F28
 
 	reqLocoBusy(Adr);
+	
 	EthSend(0, 14, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s);  //Send Loco Status und Funktions to all active Apps 
 }
 
@@ -705,8 +800,8 @@ void z21Class::setS88Data(byte *data) {
 
 //--------------------------------------------------------------------------------------------
 //return state from LN detector
-void z21Class::setLNDetector(byte *data, byte DataLen) {
-	EthSend(0, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNetGBM_s);  //LAN_LOCONET_DETECTOR
+void z21Class::setLNDetector(uint8_t client, byte *data, byte DataLen) {
+	EthSend(client, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNet_s);  //LAN_LOCONET_DETECTOR
 }
 
 //--------------------------------------------------------------------------------------------
@@ -747,6 +842,21 @@ void z21Class::setTrntInfo(uint16_t Adr, bool State) {
 	//  else data[3] = 1;  
 	EthSend(0, 0x09, LAN_X_Header, data, true, Z21bcAll_s);
 }
+
+//--------------------------------------------------------------------------------------------
+//Return EXT accessory info
+void z21Class::setExtACCInfo(uint16_t Adr, byte State, bool Status) {
+	byte data[5];
+	data[0] = LAN_X_GET_EXT_ACCESSORY_INFO;  //0x44 X-HEADER
+	data[1] = Adr >> 8;   //High
+	data[2] = Adr & 0xFF; //Low
+	data[3] = State;
+	data[4] = Status;  //0x00 … Data Valid; 0xFF … Data Unknown
+	if (notifyz21ExtAccessory)
+		notifyz21ExtAccessory(Adr, State);
+	EthSend(0, 0x0A, LAN_X_Header, data, true, Z21bcAll_s);
+}
+
 
 //--------------------------------------------------------------------------------------------
 //Return CV Value for Programming
@@ -812,9 +922,9 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 */	
 	data[14] = 0x00;  //reserved
 	data[15] = 0x00;  //reserved
-	if (client > 0)		  
-		EthSend (client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	//only to the request client
-	EthSend (0, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s);	//all that select this message (Abo)
+	
+	//only to the request client if or if client = 0 to all that select this message (Abo)!
+	EthSend (client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s);	
 }			  
 
 // Private Methods ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -961,13 +1071,76 @@ void z21Class::clearIPSlot(byte client) {
 }
 
 //--------------------------------------------------------------------------------------------
+//Read out the lenth of stored BC-Flags in EEPROM
+byte z21Class::getEEPROMBCFlagIndex() {
+	//check index store?
+	byte index = FSTORAGE.read(CLIENTINDEXSTORE);
+	
+	//check index if is correct?
+	if ((index == 0xFF) || (index > CLIENTSTORELENGTH)) { //empty or to big?
+		//flush the hole store!
+		FSTORAGE.FSTORAGEMODE(CLIENTINDEXSTORE, 0);	
+		
+		return 0;
+	}
+	return index;
+}
+
+//--------------------------------------------------------------------------------------------
+void z21Class::setEEPROMBCFlag(byte IPHash, byte BCFlag) {
+	//check index store?
+	byte index = getEEPROMBCFlagIndex();
+	
+	//search if already inside?
+	for (byte clientstore = CLIENTHASHSTORE; clientstore < index; clientstore++) {
+		if (FSTORAGE.read(clientstore) == IPHash) {
+			
+			FSTORAGE.FSTORAGEMODE(clientstore + CLIENTSTORELENGTH, BCFlag);
+			
+			return;
+		}
+	}
+
+	//insert on last position:
+	FSTORAGE.FSTORAGEMODE(index, IPHash);	//set Hash
+	FSTORAGE.FSTORAGEMODE(index + CLIENTSTORELENGTH, BCFlag);	//set BC-Flag
+	//Update index:
+	index++;
+	FSTORAGE.FSTORAGEMODE(CLIENTINDEXSTORE, index);	
+}
+
+//--------------------------------------------------------------------------------------------
+byte z21Class::findEEPROMBCFlag(byte IPHash) {
+	for (byte clientstore = CLIENTHASHSTORE; clientstore < getEEPROMBCFlagIndex(); clientstore++) {
+		if (FSTORAGE.read(clientstore) == IPHash)
+			return FSTORAGE.read(clientstore + CLIENTSTORELENGTH);
+	}
+	return 0x00;	//not found!
+}
+
+//--------------------------------------------------------------------------------------------
 byte z21Class::addIPToSlot (byte client, byte BCFlag) {
   byte Slot = z21clientMAX;
+  
+  #if defined(ESP8266) || defined(ESP32)
+  portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+  #endif
+  
   for (byte i = 0; i < z21clientMAX; i++) {
     if (ActIP[i].client == client) {
       ActIP[i].time = z21ActTimeIP;
-      if (BCFlag != 0)    //Falls BC Flag übertragen wurde diesen hinzufügen!
+      if (BCFlag != 0) {   //Falls BC Flag übertragen wurde diesen hinzufügen!
         ActIP[i].BCFlag = BCFlag;
+		
+		#if defined(ESP32)
+		portENTER_CRITICAL(&myMutex);
+		#endif
+		if (requestz21ClientHash)
+			setEEPROMBCFlag(requestz21ClientHash(client), BCFlag);
+		#if defined(ESP32)	
+		portEXIT_CRITICAL(&myMutex);
+		#endif	
+	  }
       return ActIP[i].BCFlag;    //BC Flag 4. Byte Rückmelden
     }
     else if (ActIP[i].time == 0 && Slot == z21clientMAX)
@@ -975,7 +1148,16 @@ byte z21Class::addIPToSlot (byte client, byte BCFlag) {
   }
   ActIP[Slot].client = client;
   ActIP[Slot].time = z21ActTimeIP;
-  setPower(Railpower);
+  setPower(Railpower);		//inform the client with last power state
+  //read out last BCFlag from EEPROM:
+  #if defined(ESP32)
+  portENTER_CRITICAL(&myMutex);
+  #endif
+  if (requestz21ClientHash)
+	ActIP[Slot].BCFlag = findEEPROMBCFlag(requestz21ClientHash(client));
+  #if defined(ESP32)	
+  portEXIT_CRITICAL(&myMutex);
+  #endif	
   return ActIP[Slot].BCFlag;   //BC Flag 4. Byte Rückmelden
 }
 
