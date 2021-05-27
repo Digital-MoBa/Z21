@@ -1122,7 +1122,7 @@ byte z21Class::findEEPROMBCFlag(byte IPHash) {
 byte z21Class::addIPToSlot (byte client, byte BCFlag) {
   byte Slot = z21clientMAX;
   
-  #if defined(ESP8266) || defined(ESP32)
+  #if defined(ESP32)
   portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
   #endif
   
