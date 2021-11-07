@@ -35,7 +35,10 @@
 	- 01.03.21 set default EEPROM MainV and ProgV to 20V
 	- 03.03.21 add new Z21 spezifications v1.10
 	- 21.03.21 add request for client identification (ip-hash) and store this plus BC-Flag in EEPROM
-	- 30.03-21 fix connecting problem WDP with reporting railpower when request status
+	- 30.03.21 fix connecting problem WDP with reporting railpower when request status
+	- 11.06.21 add NVS on ESP32 to store EEPROM data
+	- 30.09.21 fix storage data in Ethsend with correct datalength; fix problem with LAN_X_GET_TURNOUT_INFO to return feedbacks also when LAN_X_SET_TURNOUT is called!
+	- 06.11.21 fix EEPROM store BCFlags with IP Hash value. Use EEPROM value from 512 up to 736.
 */
 
 // include types & constants of Wiring core API
@@ -81,9 +84,7 @@ HwType:
 //Store Z21 configuration inside EEPROM:
 #define CONF1STORE 50 	//(10x Byte)	- Prog, RailCom, etc.
 #define CONF2STORE 60	//(15x Byte)	- Voltage: Prog, Rail, etc.
-#define CLIENTINDEXSTORE 99			//Index Byte of last free BC-Flag slot
-#define CLIENTSTORELENGTH 50		//Length of Client Broadcast-Flag store
-#define CLIENTHASHSTORE 100			//Start where Client-Hash is stored
+#define CLIENTHASHSTORE 0x200		//512 Start where Client-Hash is stored
 
 //--------------------------------------------------------------
 //certain global XPressnet status indicators:
@@ -213,7 +214,7 @@ class z21Class
 	
 	extern void notifyz21UpdateConf() __attribute__((weak)); //information for DCC via EEPROM (RailCom, ProgMode,...)
 	
-	extern uint8_t requestz21ClientHash(uint8_t client) __attribute__((weak));
+	extern uint8_t notifyz21ClientHash(uint8_t client) __attribute__((weak));
 
 #if defined (__cplusplus)
 }

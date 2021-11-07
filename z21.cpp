@@ -20,6 +20,13 @@
 DueFlashStorage FlashStore;
 #define FSTORAGE 	FlashStore
 #define FSTORAGEMODE write
+
+#elif defined(ESP32)  //use NVS on ESP32!
+#include "z21nvs.h"
+z21nvsClass NVSZ21;
+#define FSTORAGE NVSZ21
+#define FSTORAGEMODE write
+
 #else
 // AVR based Boards follows
 #include <EEPROM.h>
@@ -203,6 +210,31 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			  #endif
 			}
 			break;      
+		  case LAN_X_SET_TURNOUT: {  //and notify other Clients with LAN_X_GET_TURNOUT_INFO!
+			#if defined(SERIALDEBUG)
+			ZDebug.print("X_SET_TURNOUT Adr.:");
+			ZDebug.print((packet[5] << 8) + packet[6]);
+			ZDebug.print(":");
+			ZDebug.print(bitRead(packet[7], 0));
+			ZDebug.print("-");
+			ZDebug.println(bitRead(packet[7], 3));
+			#endif
+			//bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
+			if (notifyz21Accessory) {
+				notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
+			}						//	Addresse					Links/Rechts			Spule EIN/AUS
+			//Check if Broadcast Flag is correct set up?
+			bool BCset = true;
+			for (byte i = 0; i < z21clientMAX; i++) {
+				if (ActIP[i].client == client && ActIP[i].BCFlag == 0) {
+					BCset = false;
+					break;
+				}
+			}
+			//Fall to next if no BCFlag is set!
+			if (BCset)
+				break;
+		  }
 		  case LAN_X_GET_TURNOUT_INFO: {
 			#if defined(SERIALDEBUG)
 			  ZDebug.print("X_GET_TURNOUT_INFO ");
@@ -217,21 +249,6 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			      EthSend (client, 0x09, LAN_X_Header, data, true, Z21bcNone);    //BC new 23.04. !!!(old = 0)
 			  }
 			  break;
-		  }
-		  case LAN_X_SET_TURNOUT: {
-			#if defined(SERIALDEBUG)
-			ZDebug.print("X_SET_TURNOUT Adr.:");
-			ZDebug.print((packet[5] << 8) + packet[6]);
-			ZDebug.print(":");
-			ZDebug.print(bitRead(packet[7], 0));
-			ZDebug.print("-");
-			ZDebug.println(bitRead(packet[7], 3));
-			#endif
-			//bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
-			if (notifyz21Accessory) {
-				notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0), bitRead(packet[7], 3));
-			}						//	Addresse					Links/Rechts			Spule EIN/AUS
-			break;  
 		  }
 		  case LAN_X_SET_EXT_ACCESSORY: {
 			#if defined(SERIALDEBUG)
@@ -335,7 +352,14 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			if (notifyz21RailPower)
 				notifyz21RailPower(Railpower); //Zustand Gleisspannung Antworten
 			#if defined(SERIALDEBUG)
-			  ZDebug.print("SET_BROADCASTFLAGS: "); 
+			  ZDebug.print(packet[7], BIN); 	
+			  ZDebug.print("-"); 	
+			  ZDebug.print(packet[6], BIN); 	
+			  ZDebug.print("-"); 	
+			  ZDebug.print(packet[5], BIN); 	
+			  ZDebug.print("-"); 	
+			  ZDebug.print(packet[4], BIN); 	
+			  ZDebug.print(" SET_BROADCASTFLAGS: "); 
 			  ZDebug.println(addIPToSlot(client, 0x00), BIN);
 			  // 1=BC Power, Loco INFO, Trnt INFO; 2=BC Änderungen der Rückmelder am R-Bus
 			#endif
@@ -523,11 +547,11 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			#if defined(ESP32)
 			portENTER_CRITICAL(&myMutex);
 			#endif
-			
+			/*
 			#if defined(ESP8266) || defined(ESP32)
-			EEPROM.commit();
+			FSTORAGE.commit();
 			#endif
-			
+			*/
 			#if defined(ESP32) 
 			portEXIT_CRITICAL(&myMutex);
 			#endif 
@@ -620,10 +644,11 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			for (byte i = 0; i < 16; i++) {
 				FSTORAGE.FSTORAGEMODE(CONF2STORE+i,packet[4+i]);
 			}
+			/*
 			#if defined(ESP8266) || defined(ESP32)
-			EEPROM.commit();
+			FSTORAGE.commit();
 			#endif
-			
+			*/
 			//Request DCC to change
 			if (notifyz21UpdateConf)
 				notifyz21UpdateConf();
@@ -748,6 +773,11 @@ void z21Class::returnLocoStateFull (byte client, uint16_t Adr, bool bc)
 //bc = true => to inform also other client over the change.
 //bc = false => just ask about the loco state
 {
+	if (Adr == 0) {
+		//Not a valid loco adr!
+		return;
+	}
+	
 	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
@@ -932,7 +962,7 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 
 //--------------------------------------------------------------------------------------------
 void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, byte *dataString, boolean withXOR, byte BC) {
-	byte data[24]; 			//z21 send storage
+	byte data[DataLen]; 			//z21 send storage
 	
 	//--------------------------------------------        
 	//XOR bestimmen:
@@ -1071,75 +1101,42 @@ void z21Class::clearIPSlot(byte client) {
 }
 
 //--------------------------------------------------------------------------------------------
-//Read out the lenth of stored BC-Flags in EEPROM
-byte z21Class::getEEPROMBCFlagIndex() {
-	//check index store?
-	byte index = FSTORAGE.read(CLIENTINDEXSTORE);
-	
-	//check index if is correct?
-	if ((index == 0xFF) || (index > CLIENTSTORELENGTH)) { //empty or to big?
-		//flush the hole store!
-		FSTORAGE.FSTORAGEMODE(CLIENTINDEXSTORE, 0);	
-		
-		return 0;
-	}
-	return index;
-}
-
-//--------------------------------------------------------------------------------------------
+//speichern des BCFlag im EEPROM
 void z21Class::setEEPROMBCFlag(byte IPHash, byte BCFlag) {
-	//check index store?
-	byte index = getEEPROMBCFlagIndex();
-	
-	//search if already inside?
-	for (byte clientstore = CLIENTHASHSTORE; clientstore < index; clientstore++) {
-		if (FSTORAGE.read(clientstore) == IPHash) {
-			
-			FSTORAGE.FSTORAGEMODE(clientstore + CLIENTSTORELENGTH, BCFlag);
-			
-			return;
-		}
-	}
-
-	//insert on last position:
-	FSTORAGE.FSTORAGEMODE(index, IPHash);	//set Hash
-	FSTORAGE.FSTORAGEMODE(index + CLIENTSTORELENGTH, BCFlag);	//set BC-Flag
-	//Update index:
-	index++;
-	FSTORAGE.FSTORAGEMODE(CLIENTINDEXSTORE, index);	
+	FSTORAGE.FSTORAGEMODE(CLIENTHASHSTORE | IPHash, BCFlag);
+	#if defined(SERIALDEBUG)
+	ZDebug.print(CLIENTHASHSTORE | IPHash);
+	ZDebug.print(" write: ");
+	ZDebug.println(BCFlag, BIN);
+	#endif
 }
 
 //--------------------------------------------------------------------------------------------
+//lesen des BCFlag im EEPROM
 byte z21Class::findEEPROMBCFlag(byte IPHash) {
-	for (byte clientstore = CLIENTHASHSTORE; clientstore < getEEPROMBCFlagIndex(); clientstore++) {
-		if (FSTORAGE.read(clientstore) == IPHash)
-			return FSTORAGE.read(clientstore + CLIENTSTORELENGTH);
-	}
-	return 0x00;	//not found!
+	uint8_t flag = FSTORAGE.read(CLIENTHASHSTORE | IPHash);
+	#if defined(SERIALDEBUG)
+	ZDebug.print(CLIENTHASHSTORE | IPHash);
+	ZDebug.print("read: ");
+	ZDebug.println(flag, BIN);
+	#endif
+	//wurde BC im EEPROM bereits erfasst?
+	if (flag == 0xFF)
+		return 0x00;	//not found!
+	return flag;
 }
 
 //--------------------------------------------------------------------------------------------
 byte z21Class::addIPToSlot (byte client, byte BCFlag) {
   byte Slot = z21clientMAX;
   
-  #if defined(ESP32)
-  portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-  #endif
-  
   for (byte i = 0; i < z21clientMAX; i++) {
     if (ActIP[i].client == client) {
       ActIP[i].time = z21ActTimeIP;
       if (BCFlag != 0) {   //Falls BC Flag übertragen wurde diesen hinzufügen!
         ActIP[i].BCFlag = BCFlag;
-		
-		#if defined(ESP32)
-		portENTER_CRITICAL(&myMutex);
-		#endif
-		if (requestz21ClientHash)
-			setEEPROMBCFlag(requestz21ClientHash(client), BCFlag);
-		#if defined(ESP32)	
-		portEXIT_CRITICAL(&myMutex);
-		#endif	
+		if (notifyz21ClientHash)
+			setEEPROMBCFlag(notifyz21ClientHash(client), BCFlag);
 	  }
       return ActIP[i].BCFlag;    //BC Flag 4. Byte Rückmelden
     }
@@ -1149,15 +1146,11 @@ byte z21Class::addIPToSlot (byte client, byte BCFlag) {
   ActIP[Slot].client = client;
   ActIP[Slot].time = z21ActTimeIP;
   setPower(Railpower);		//inform the client with last power state
+
   //read out last BCFlag from EEPROM:
-  #if defined(ESP32)
-  portENTER_CRITICAL(&myMutex);
-  #endif
-  if (requestz21ClientHash)
-	ActIP[Slot].BCFlag = findEEPROMBCFlag(requestz21ClientHash(client));
-  #if defined(ESP32)	
-  portEXIT_CRITICAL(&myMutex);
-  #endif	
+  if (notifyz21ClientHash)
+	ActIP[Slot].BCFlag = findEEPROMBCFlag(notifyz21ClientHash(client));
+
   return ActIP[Slot].BCFlag;   //BC Flag 4. Byte Rückmelden
 }
 
