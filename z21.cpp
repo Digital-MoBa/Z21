@@ -452,14 +452,15 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			#if defined(SERIALDEBUG)
 			  ZDebug.println("LOCONET_FROM_LAN"); 
 			#endif
-			if (notifyz21LNSendPacket) {
-				byte LNdata[packet[0] - 0x04];  //n Bytes
-				for (byte i = 0; i < (packet[0] - 0x04); i++) 
-					LNdata[i] = packet[0x04+i];
+			
+			byte LNdata[packet[0] - 0x04];  //n Bytes
+			for (byte i = 0; i < (packet[0] - 0x04); i++) 
+				LNdata[i] = packet[0x04+i];
+			if (notifyz21LNSendPacket)
 				notifyz21LNSendPacket(LNdata, packet[0] - 0x04);  
-				//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
-				EthSend(client, packet[0], LAN_LOCONET_FROM_LAN, packet, false, Z21bcLocoNet_s);  //LAN_LOCONET_FROM_LAN
-			}
+			//Melden an andere LAN-Client das Meldung auf LocoNet-Bus geschrieben wurde
+			EthSend(client, packet[0], LAN_LOCONET_FROM_LAN, LNdata, false, Z21bcLocoNet_s);  //LAN_LOCONET_FROM_LAN not to the client!
+
 			break;
 		}
 		case (LAN_LOCONET_DISPATCH_ADDR): {
@@ -831,7 +832,9 @@ void z21Class::setS88Data(byte *data) {
 //--------------------------------------------------------------------------------------------
 //return state from LN detector
 void z21Class::setLNDetector(uint8_t client, byte *data, byte DataLen) {
-	EthSend(client, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNet_s);  //LAN_LOCONET_DETECTOR
+	if (client > 0)
+		EthSend(client, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcNone);  //LAN_LOCONET_DETECTOR
+	else EthSend(0, 0x04 + DataLen, LAN_LOCONET_DETECTOR, data, false, Z21bcLocoNet_s);  //LAN_LOCONET_DETECTOR
 }
 
 //--------------------------------------------------------------------------------------------
@@ -954,7 +957,9 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 	data[15] = 0x00;  //reserved
 	
 	//only to the request client if or if client = 0 to all that select this message (Abo)!
-	EthSend (client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s);	
+	if (client > 0)
+		EthSend (client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	
+	else EthSend (0, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcSystemInfo_s);
 }			  
 
 // Private Methods ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -979,7 +984,7 @@ void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, 
         dataString++;
     }
    //--------------------------------------------        		
-   if (client > 0) {
+   if (client > 0 && BC == Z21bcNone) {
 		if (notifyz21EthSend)
 			notifyz21EthSend(client, data);
 
@@ -995,7 +1000,7 @@ void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, 
 		#endif
    }
    else {
-	byte clientOut = client;
+	byte clientOut = 0; //client;
 	for (byte i = 0; i < z21clientMAX; i++) {
 		if ( (ActIP[i].time > 0) && ( (BC & ActIP[i].BCFlag) > 0) ) {    //Boradcast & Noch aktiv
 
@@ -1005,25 +1010,28 @@ void z21Class::EthSend (byte client, unsigned int DataLen, unsigned int Header, 
 			else clientOut = ActIP[i].client;
 		  }
 		  
-		  //--------------------------------------------
-		  if (notifyz21EthSend)
-			notifyz21EthSend(clientOut, data);
+		  if ((clientOut != client) || (clientOut == 0)) {	//wenn client > 0 und nicht Z21bcNone, sende an alle auﬂer den client!
+		  
+			  //--------------------------------------------
+			  if (notifyz21EthSend)
+				notifyz21EthSend(clientOut, data);
 
-		  #if defined (SERIALDEBUG)
-			  ZDebug.print(i);
-			  ZDebug.print("BTX ");
-			  ZDebug.print(clientOut);
-			  ZDebug.print(" BC:");
-			  ZDebug.print(BC & ActIP[i].BCFlag, BIN);
-			  ZDebug.print(" : ");
-			  for (byte x = 0; x < data[0]; x++) {
-				  ZDebug.print(data[x], HEX);
-				  ZDebug.print(" ");
-			  }
-			  ZDebug.println();
-		  #endif
-		  if (clientOut == 0)
-			  return;
+			  #if defined (SERIALDEBUG)
+				  ZDebug.print(i);
+				  ZDebug.print("BTX ");
+				  ZDebug.print(clientOut);
+				  ZDebug.print(" BC:");
+				  ZDebug.print(BC & ActIP[i].BCFlag, BIN);
+				  ZDebug.print(" : ");
+				  for (byte x = 0; x < data[0]; x++) {
+					  ZDebug.print(data[x], HEX);
+					  ZDebug.print(" ");
+				  }
+				  ZDebug.println();
+			  #endif
+			  if (clientOut == 0)
+				  return;
+		  }
 		}
 	}
   }

@@ -39,6 +39,7 @@
 	- 11.06.21 add NVS on ESP32 to store EEPROM data
 	- 30.09.21 fix storage data in Ethsend with correct datalength; fix problem with LAN_X_GET_TURNOUT_INFO to return feedbacks also when LAN_X_SET_TURNOUT is called!
 	- 06.11.21 fix EEPROM store BCFlags with IP Hash value. Use EEPROM value from 512 up to 736.
+	- 16.11.21 add sending data to client only with "Z21bcNone", if client set and BC-Flag set (not "Z21bcNone") then don't inform the client!
 */
 
 // include types & constants of Wiring core API
