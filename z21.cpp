@@ -839,10 +839,13 @@ void z21Class::setLNDetector(uint8_t client, byte *data, byte DataLen) {
 
 //--------------------------------------------------------------------------------------------
 //LN Meldungen weiterleiten
-void z21Class::setLNMessage(byte *data, byte DataLen, byte bcType, bool TX) {
+bool z21Class::setLNMessage(byte *data, byte DataLen, byte bcType, bool TX) {
+	if (DataLen > 20)	//Z21 LocoNet tunnel DATA has max 20 Byte!
+		return false;
 	if (TX)   //Send by Z21 or Receive a Packet?
 		EthSend(0, 0x04 + DataLen, LAN_LOCONET_Z21_TX, data, false, bcType);  //LAN_LOCONET_Z21_TX
 	else EthSend(0, 0x04 + DataLen, LAN_LOCONET_Z21_RX, data, false, bcType);  //LAN_LOCONET_Z21_RX
+	return true;
 }
 
 //--------------------------------------------------------------------------------------------

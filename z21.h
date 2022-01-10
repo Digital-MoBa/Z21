@@ -40,6 +40,7 @@
 	- 30.09.21 fix storage data in Ethsend with correct datalength; fix problem with LAN_X_GET_TURNOUT_INFO to return feedbacks also when LAN_X_SET_TURNOUT is called!
 	- 06.11.21 fix EEPROM store BCFlags with IP Hash value. Use EEPROM value from 512 up to 736.
 	- 16.11.21 add sending data to client only with "Z21bcNone", if client set and BC-Flag set (not "Z21bcNone") then don't inform the client!
+	- 14.12.21 limit max packet size for Z21 LocoNet tunnel data to 20 bytes!
 */
 
 // include types & constants of Wiring core API
@@ -137,7 +138,7 @@ class z21Class
 	void setS88Data(byte *data);	//return state of S88 sensors
 
 	void setLNDetector(uint8_t client, byte *data, byte DataLen);	//return state from LN detector
-	void setLNMessage(byte *data, byte DataLen, byte bcType, bool TX);	//return LN Message
+	bool setLNMessage(byte *data, byte DataLen, byte bcType, bool TX);	//return LN Message
 	
 	void setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2); //state from CAN detector
 
