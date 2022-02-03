@@ -1,6 +1,6 @@
 /*
   z21.h - library for Z21 mobile protocoll
-  Copyright (c) 2013-2021 Philipp Gahtow  All right reserved.
+  Copyright (c) 2013-2022 Philipp Gahtow  All right reserved.
 
   ROCO Z21 LAN Protocol for Arduino.
   
@@ -41,6 +41,7 @@
 	- 06.11.21 fix EEPROM store BCFlags with IP Hash value. Use EEPROM value from 512 up to 736.
 	- 16.11.21 add sending data to client only with "Z21bcNone", if client set and BC-Flag set (not "Z21bcNone") then don't inform the client!
 	- 14.12.21 limit max packet size for Z21 LocoNet tunnel data to 20 bytes!
+	- 03.02.22 fix setCANDetector() data values with 16bit
 */
 
 // include types & constants of Wiring core API

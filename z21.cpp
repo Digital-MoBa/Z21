@@ -852,15 +852,15 @@ bool z21Class::setLNMessage(byte *data, byte DataLen, byte bcType, bool TX) {
 //return state from CAN detector
 void z21Class::setCANDetector(uint16_t NID, uint16_t Adr, uint8_t port, uint8_t typ, uint16_t v1, uint16_t v2) {
 	byte data[10];
-	data[0] = NID & 0x08;
+	data[0] = NID & 0xFF;
 	data[1] = NID >> 8;
-	data[2] = Adr & 0x08;
+	data[2] = Adr & 0xFF;
 	data[3] = Adr >> 8;
 	data[4] = port;
 	data[5] = typ;
-	data[6] = v1 & 0x08;
+	data[6] = v1 & 0xFF;
 	data[7] = v1 >> 8;
-	data[8] = v2 & 0x08;
+	data[8] = v2 & 0xFF;
 	data[9] = v2 >> 8;
 	EthSend(0, 0x0E, LAN_CAN_DETECTOR, data, false, Z21bcCANDetector_s);  //CAN_DETECTOR
 }
