@@ -177,11 +177,11 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				notifyz21CVWRITE(packet[6], packet[7], packet[8]); //CV_MSB, CV_LSB, value
 			}
 			break;
-		  case LAN_X_CV_POM: 
-			if (packet[5] == 0x30) {  //DB0
+		  case LAN_X_CV_POM: {
+		    uint16_t CVAdr = ((packet[8] & B11) << 8) + packet[9];
+			byte value = packet[10];
+			if (packet[5] == 0x30) {  //DB0 = LAN_X_CV_POM
 			  uint16_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
-			  uint16_t CVAdr = ((packet[8] & B11) << 8) + packet[9]; 
-			  byte value = packet[10];
 			  if ((packet[8] & 0xFC) == 0xEC) {
 				#if defined(SERIALDEBUG)
 				ZDebug.println("LAN_X_CV_POM_WRITE_BYTE"); 
@@ -196,7 +196,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				if (notifyz21CVPOMWRITEBIT)
 					notifyz21CVPOMWRITEBIT (Adr, CVAdr, value);  //set Bit
 			  }
-			  else {
+			  else if ((packet[8] & 0xFC) == 0xE4) {
 				  #if defined(SERIALDEBUG)
 				  ZDebug.println("LAN_X_CV_POM_READ_BYTE"); 
 				  #endif
@@ -204,12 +204,32 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 					notifyz21CVPOMREADBYTE (Adr, CVAdr);  //read byte
 			  }
 			}
-			else if (packet[5] == 0x31) {  //DB0
-			  #if defined(SERIALDEBUG)
-			  ZDebug.println("LAN_X_CV_POM_ACCESSORY"); 
-			  #endif
+			else if (packet[5] == 0x31) {  //DB0 = LAN_X_CV_POM_ACCESSORY
+			  uint16_t Adr = ((packet[6] & 0x1F) << 8) + packet[7];	
+			  if ((packet[8] & 0xFC) == 0xEC) {
+				#if defined(SERIALDEBUG)
+				ZDebug.println("LAN_X_CV_POM_ACCESSORY_WRITE_BYTE"); 
+				#endif
+				if (notifyz21CVPOMACCWRITEBYTE)
+					notifyz21CVPOMACCWRITEBYTE (Adr, CVAdr, value);  //set Byte
+			  }
+			  else if ((packet[8] & 0xFC) == 0xE8) {
+				#if defined(SERIALDEBUG)
+				ZDebug.println("LAN_X_CV_POM_ ACCESSORY_WRITE_BIT"); 
+				#endif
+				if (notifyz21CVPOMACCWRITEBIT)
+					notifyz21CVPOMACCWRITEBIT (Adr, CVAdr, value);  //set Bit
+			  }
+			  else if ((packet[8] & 0xFC) == 0xE4) {
+				#if defined(SERIALDEBUG)
+				ZDebug.println("LAN_X_CV_POM_ ACCESSORY_READ_BYTE"); 
+				#endif
+				if (notifyz21CVPOMACCREADBYTE)
+					notifyz21CVPOMACCREADBYTE (Adr, CVAdr);  //read byte
+			  }
 			}
 			break;      
+		  }
 		  case LAN_X_SET_TURNOUT: {  //and notify other Clients with LAN_X_GET_TURNOUT_INFO!
 			#if defined(SERIALDEBUG)
 			ZDebug.print("X_SET_TURNOUT Adr.:");

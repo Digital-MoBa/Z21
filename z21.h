@@ -7,7 +7,7 @@
   Notice:
 	- analyse the data and give back the content and a answer
 
-  Grundlage: Z21 LAN Protokoll Spezifikation V1.10
+  Grundlage: Z21 LAN Protokoll Spezifikation V1.11
 
   Änderungen:
 	- 23.09.15 Anpassung LAN_LOCONET_DETECTOR
@@ -42,6 +42,7 @@
 	- 16.11.21 add sending data to client only with "Z21bcNone", if client set and BC-Flag set (not "Z21bcNone") then don't inform the client!
 	- 14.12.21 limit max packet size for Z21 LocoNet tunnel data to 20 bytes!
 	- 03.02.22 fix setCANDetector() data values with 16bit
+	- 10.02.22 add LAN_X_CV_POM_ACCESSORY statements
 */
 
 // include types & constants of Wiring core API
@@ -201,6 +202,9 @@ class z21Class
 	extern void notifyz21CVPOMWRITEBYTE(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
 	extern void notifyz21CVPOMWRITEBIT(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
 	extern void notifyz21CVPOMREADBYTE (uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
+	extern void notifyz21CVPOMACCWRITEBYTE(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
+	extern void notifyz21CVPOMACCWRITEBIT(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
+	extern void notifyz21CVPOMACCREADBYTE (uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
 	
 	extern uint8_t notifyz21AccessoryInfo(uint16_t Adr) __attribute__((weak));
 	extern void notifyz21Accessory(uint16_t Adr, bool state, bool active) __attribute__((weak));
