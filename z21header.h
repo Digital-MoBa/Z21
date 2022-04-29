@@ -34,6 +34,7 @@
 #define LAN_X_GET_LOCO_INFO          0xE3
 #define LAN_X_SET_LOCO               0xE4  //X-Header
 #define LAN_X_SET_LOCO_FUNCTION      0xF8  //DB0
+#define LAN_X_SET_LOCO_BINARY_STATE  0xE5  //X-Header
 #define LAN_X_LOCO_INFO              0xEF
 #define LAN_X_GET_TURNOUT_INFO       0x43 
 #define LAN_X_SET_TURNOUT            0x53
@@ -61,6 +62,12 @@
 #define LAN_CAN_DETECTOR 			 0xC4
 
 #define LAN_X_CV_POM                 0xE6  //X-Header 
+#define LAN_X_CV_POM_WRITE_BYTE		 0xEC  //DB3 Option
+#define LAN_X_CV_POM_WRITE_BIT		 0xE8  //DB3 Option
+#define LAN_X_CV_POM_READ_BYTE		 0xE4  //DB3 Option
+#define LAN_X_CV_POM_ACCESSORY_WRITE_BYTE	0xEC	//DB3 Option
+#define LAN_X_CV_POM_ACCESSORY_WRITE_BIT	0xE8	//DB3 Option
+#define LAN_X_CV_POM_ACCESSORY_READ_BYTE	0xE4	//DB3 Option
 
 //ab Z21 FW Version 1.23
 #define LAN_X_MM_WRITE_BYTE          0x24

@@ -7,7 +7,7 @@
   Notice:
 	- analyse the data and give back the content and a answer
 
-  Grundlage: Z21 LAN Protokoll Spezifikation V1.11
+  Grundlage: Z21 LAN Protokoll Spezifikation V1.12
 
   Änderungen:
 	- 23.09.15 Anpassung LAN_LOCONET_DETECTOR
@@ -43,6 +43,10 @@
 	- 14.12.21 limit max packet size for Z21 LocoNet tunnel data to 20 bytes!
 	- 03.02.22 fix setCANDetector() data values with 16bit
 	- 10.02.22 add LAN_X_CV_POM_ACCESSORY statements
+	- 24.04.22 add SystemState.Capabilities for feature report to clients (FW Version 1.42)
+			   modify LAN_X_LOCO_INFO to FW Version 1.42
+	- 25.04.22 add LAN_X_SET_LOCO_FUNCTION_GROUP and LAN_X_SET_LOCO_BINARY_STATE
+			   fix SET_EXT_ACCESSORY and EXT_ACCESSORY_INFO
 */
 
 // include types & constants of Wiring core API
@@ -58,13 +62,16 @@
 #define z21Port 21105      // local port to listen on
 
 //**************************************************************
-//#define ZDebug Serial	//Port for the Debugging
 //#define SERIALDEBUG		//Serial Debug
+
+#if defined(SERIALDEBUG)
+#define ZDebug Serial	//Port for the Debugging
+#endif
 
 //**************************************************************
 //Firmware-Version der Z21:
 #define z21FWVersionMSB 0x01
-#define z21FWVersionLSB 0x40
+#define z21FWVersionLSB 0x42
 /*
 HwType:
 #define D_HWT_Z21_OLD 0x00000200 // „schwarze Z21” (Hardware-Variante ab 2012)
@@ -178,7 +185,9 @@ class z21Class
 	byte getEEPROMBCFlagIndex();		//return the length of BC-Flag store
 	void setEEPROMBCFlag(byte IPHash, byte BCFlag);		//add BC-Flag to store
 	byte findEEPROMBCFlag(byte IPHash);		//read the BC-Flag for this client
-
+	
+	uint8_t LAST_EXTACC_msg = 0x00;		//for LAN_X_GET_EXT_ACCESSORY_INFO
+	bool LAST_EXTACC_received = false;	//already had any EXTACC Message?
 };
 
 #if defined (__cplusplus)
@@ -201,18 +210,28 @@ class z21Class
 	extern void notifyz21CVWRITE(uint8_t cvAdrMSB, uint8_t cvAdrLSB, uint8_t value) __attribute__((weak));
 	extern void notifyz21CVPOMWRITEBYTE(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
 	extern void notifyz21CVPOMWRITEBIT(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
-	extern void notifyz21CVPOMREADBYTE (uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
+	extern void notifyz21CVPOMREADBYTE(uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
 	extern void notifyz21CVPOMACCWRITEBYTE(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
 	extern void notifyz21CVPOMACCWRITEBIT(uint16_t Adr, uint16_t cvAdr, uint8_t value) __attribute__((weak));
-	extern void notifyz21CVPOMACCREADBYTE (uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
+	extern void notifyz21CVPOMACCREADBYTE(uint16_t Adr, uint16_t cvAdr) __attribute__((weak));
 	
 	extern uint8_t notifyz21AccessoryInfo(uint16_t Adr) __attribute__((weak));
 	extern void notifyz21Accessory(uint16_t Adr, bool state, bool active) __attribute__((weak));
-	
 	extern void notifyz21ExtAccessory(uint16_t Adr, byte state) __attribute__((weak));
 		
 	extern void notifyz21LocoState(uint16_t Adr, uint8_t data[]) __attribute__((weak));
 	extern void notifyz21LocoFkt(uint16_t Adr, uint8_t type, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt0to4(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt5to8(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt9to12(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt13to20(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt21to28(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt29to36(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt37to44(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt45to52(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt53to60(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFkt61to68(uint16_t Adr, uint8_t fkt) __attribute__((weak));
+	extern void notifyz21LocoFktExt(uint16_t Adr, uint8_t low, uint8_t high) __attribute__((weak));
 	extern void notifyz21LocoSpeed(uint16_t Adr, uint8_t speed, uint8_t steps) __attribute__((weak));
 	
 	extern void notifyz21S88Data(uint8_t gIndex) __attribute__((weak));	//return last state S88 Data for the Client!

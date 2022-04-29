@@ -1,7 +1,7 @@
 /*
 *****************************************************************************
   *		z21.cpp - library for Roco Z21 LAN protocoll
-  *		Copyright (c) 2013-2021 Philipp Gahtow  All right reserved.
+  *		Copyright (c) 2013-2022 Philipp Gahtow  All right reserved.
   *
   *
 *****************************************************************************
@@ -177,26 +177,26 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				notifyz21CVWRITE(packet[6], packet[7], packet[8]); //CV_MSB, CV_LSB, value
 			}
 			break;
-		  case LAN_X_CV_POM: {
+		  case LAN_X_CV_POM: {	//X-Header 
 		    uint16_t CVAdr = ((packet[8] & B11) << 8) + packet[9];
 			byte value = packet[10];
 			if (packet[5] == 0x30) {  //DB0 = LAN_X_CV_POM
 			  uint16_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
-			  if ((packet[8] & 0xFC) == 0xEC) {
+			  if ((packet[8] & 0xFC) == LAN_X_CV_POM_WRITE_BYTE) {		//DB3 Option 0xEC
 				#if defined(SERIALDEBUG)
 				ZDebug.println("LAN_X_CV_POM_WRITE_BYTE"); 
 				#endif
 				if (notifyz21CVPOMWRITEBYTE)
 					notifyz21CVPOMWRITEBYTE (Adr, CVAdr, value);  //set Byte
 			  }
-			  else if ((packet[8] & 0xFC) == 0xE8) {
+			  else if ((packet[8] & 0xFC) == LAN_X_CV_POM_WRITE_BIT) {	//DB3 Option 0xE8
 				#if defined(SERIALDEBUG)
 				ZDebug.println("LAN_X_CV_POM_WRITE_BIT"); 
 				#endif
 				if (notifyz21CVPOMWRITEBIT)
 					notifyz21CVPOMWRITEBIT (Adr, CVAdr, value);  //set Bit
 			  }
-			  else if ((packet[8] & 0xFC) == 0xE4) {
+			  else if ((packet[8] & 0xFC) == LAN_X_CV_POM_READ_BYTE) {	//DB3 Option 0xE4
 				  #if defined(SERIALDEBUG)
 				  ZDebug.println("LAN_X_CV_POM_READ_BYTE"); 
 				  #endif
@@ -206,23 +206,23 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			}
 			else if (packet[5] == 0x31) {  //DB0 = LAN_X_CV_POM_ACCESSORY
 			  uint16_t Adr = ((packet[6] & 0x1F) << 8) + packet[7];	
-			  if ((packet[8] & 0xFC) == 0xEC) {
+			  if ((packet[8] & 0xFC) == LAN_X_CV_POM_ACCESSORY_WRITE_BYTE) {		//DB3 Option 0xEC
 				#if defined(SERIALDEBUG)
 				ZDebug.println("LAN_X_CV_POM_ACCESSORY_WRITE_BYTE"); 
 				#endif
 				if (notifyz21CVPOMACCWRITEBYTE)
 					notifyz21CVPOMACCWRITEBYTE (Adr, CVAdr, value);  //set Byte
 			  }
-			  else if ((packet[8] & 0xFC) == 0xE8) {
+			  else if ((packet[8] & 0xFC) == LAN_X_CV_POM_ACCESSORY_WRITE_BIT) {	//DB3 Option 0xE8
 				#if defined(SERIALDEBUG)
-				ZDebug.println("LAN_X_CV_POM_ ACCESSORY_WRITE_BIT"); 
+				ZDebug.println("LAN_X_CV_POM_ACCESSORY_WRITE_BIT"); 
 				#endif
 				if (notifyz21CVPOMACCWRITEBIT)
 					notifyz21CVPOMACCWRITEBIT (Adr, CVAdr, value);  //set Bit
 			  }
-			  else if ((packet[8] & 0xFC) == 0xE4) {
+			  else if ((packet[8] & 0xFC) == LAN_X_CV_POM_ACCESSORY_READ_BYTE) {	//DB3 Option 0xE4
 				#if defined(SERIALDEBUG)
-				ZDebug.println("LAN_X_CV_POM_ ACCESSORY_READ_BYTE"); 
+				ZDebug.println("LAN_X_CV_POM_ACCESSORY_READ_BYTE"); 
 				#endif
 				if (notifyz21CVPOMACCREADBYTE)
 					notifyz21CVPOMACCREADBYTE (Adr, CVAdr);  //read byte
@@ -271,23 +271,31 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			  break;
 		  }
 		  case LAN_X_SET_EXT_ACCESSORY: {
+			//Schalten Erweiterten Zubehördecoder
 			#if defined(SERIALDEBUG)
 			ZDebug.print("X_SET_EXT_ACCESSORY RAdr.:");
 			ZDebug.print((packet[5] << 8) + packet[6]);
 			ZDebug.print(":0x");
 			ZDebug.println(packet[7], HEX);
 			#endif
-			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+			if (notifyz21ExtAccessory)
+				notifyz21ExtAccessory((packet[5] << 8) + packet[6], packet[7]);
+			LAST_EXTACC_msg = packet[7];	//speichere letztes Kommando!
+			LAST_EXTACC_received = true;	//wir haben eine EXTACC empfangen!
+			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);	
 			break;
 		  }
 		  case LAN_X_GET_EXT_ACCESSORY_INFO: {
+			//kann mit folgendem Kommando der letzte an einen Erweiterten Zubehördecoder übertragene Befehl abgefragt werden.
 			#if defined(SERIALDEBUG)
 			ZDebug.print("X_EXT_ACCESSORY_INFO RAdr.:");
 			ZDebug.print((packet[5] << 8) + packet[6]);
 			ZDebug.print(":0x");
 			ZDebug.println(packet[7], HEX);	//DB2 Reserviert für zukünftige Erweiterungen
 			#endif  
-			setExtACCInfo((packet[5] << 8) + packet[6], packet[7]);
+			if (LAST_EXTACC_received == true)
+				setExtACCInfo((packet[5] << 8) + packet[6], LAST_EXTACC_msg);	//0x00 … Data Valid;
+			else setExtACCInfo((packet[5] << 8) + packet[6], LAST_EXTACC_msg, 0xFF);	//0xFF … Data Unknown
 			break;  
 		  }
 		  case LAN_X_SET_STOP:
@@ -308,13 +316,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			//setLocoBusy:
 			addBusySlot(client,word(packet[6] & 0x3F, packet[7]));
 			
-			if (packet[5] == LAN_X_SET_LOCO_FUNCTION) {  //DB0
-			  //LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
-			  if (notifyz21LocoFkt)
-				notifyz21LocoFkt(word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & B00111111); 
-			  //uint16_t Adr, uint8_t type, uint8_t fkt
-			}
-			else {  //DB0
+			if ((packet[5] & 0xF0) == 0x10) {  //DB0 => 0x1x = LAN_X_SET_LOCO_DRIVE
 				  //ZDebug.print("X_SET_LOCO_DRIVE ");
 				  byte steps = 128;	//default value S=3; DCC 128 Fahrstufen
 				  if (packet[5] == 0x12)	//S=2; DCC 28 Fahrstufen
@@ -324,8 +326,53 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				if (notifyz21LocoSpeed)
 					notifyz21LocoSpeed(word(packet[6] & 0x3F, packet[7]), packet[8],steps);
 			}
-			returnLocoStateFull(client, word(packet[6] & 0x3F, packet[7]), true);	
+			else if (packet[5] == LAN_X_SET_LOCO_FUNCTION) {  //DB0 = 0xF8
+			  //LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
+			  if (notifyz21LocoFkt)
+				notifyz21LocoFkt(word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & B00111111); 
+			  //uint16_t Adr, uint8_t type, uint8_t fkt
+			}
+			//LAN_X_SET_LOCO_FUNCTION_GROUP:
+			else if ((packet[5] == 0x20) && notifyz21LocoFkt0to4) 	
+				notifyz21LocoFkt0to4(word(packet[6] & 0x3F, packet[7]), packet[8] & 0x1F); 	//0 0 0 F0 F4 F3 F2 F1
+			else if ((packet[5] == 0x21) && notifyz21LocoFkt5to8) 	
+				notifyz21LocoFkt5to8(word(packet[6] & 0x3F, packet[7]), packet[8] & 0x0F); 	//0 0 0 0 F8 F7 F6 F5
+			else if ((packet[5] == 0x22) && notifyz21LocoFkt9to12)	
+				notifyz21LocoFkt9to12(word(packet[6] & 0x3F, packet[7]), packet[8] & 0x1F); //0 0 0 0 F12 F11 F10 F9
+			else if ((packet[5] == 0x23) && notifyz21LocoFkt13to20)	
+				notifyz21LocoFkt13to20(word(packet[6] & 0x3F, packet[7]), packet[8]); 		//F20 F19 F18 F17 F16 F15 F14 F13
+			else if ((packet[5] == 0x28) && notifyz21LocoFkt21to28)	
+				notifyz21LocoFkt21to28(word(packet[6] & 0x3F, packet[7]), packet[8]); 		//F28 F27 F26 F25 F24 F23 F22 F21 
+			else if ((packet[5] == 0x29) && notifyz21LocoFkt29to36)	
+				notifyz21LocoFkt29to36(word(packet[6] & 0x3F, packet[7]), packet[8]);		//F36 F35 F34 F33 F32 F31 F30 F29
+			else if (packet[5] == 0x2A) {	// F44 - F37
+				if (notifyz21LocoFkt37to44)
+					notifyz21LocoFkt37to44(word(packet[6] & 0x3F, packet[7]), packet[8]);	//F44 F43 F42 F41 F40 F39 F38 F37 
+				return;	//keine Rückmeldung an die LAN-Clients
+			}
+			else if (packet[5] == 0x2B) {	// F52 - F45
+				if (notifyz21LocoFkt45to52)
+					notifyz21LocoFkt45to52(word(packet[6] & 0x3F, packet[7]), packet[8]);	//F52 F51 F50 F49 F48 F47 F46 F45
+				return;	//keine Rückmeldung an die LAN-Clients
+			}
+			else if (packet[5] == 0x50) {	// F60 - F53
+				if (notifyz21LocoFkt53to60)
+					notifyz21LocoFkt53to60(word(packet[6] & 0x3F, packet[7]), packet[8]);	//F60 F59 F58 F57 F56 F55 F54 F53 
+				return;	//keine Rückmeldung an die LAN-Clients
+			}
+			else if (packet[5] == 0x51) {	// F68 - F61
+				if (notifyz21LocoFkt61to68)
+					notifyz21LocoFkt61to68(word(packet[6] & 0x3F, packet[7]), packet[8]);	//F68 F67 F66 F65 F64 F63 F62 F61 
+				return;	//keine Rückmeldung an die LAN-Clients
+			}
+			returnLocoStateFull(client, word(packet[6] & 0x3F, packet[7]), true);	//Rückmeldung an die LAN-Clients!
 			break;  
+		  case LAN_X_SET_LOCO_BINARY_STATE:
+			if (packet[5] == 0x5F) {	//DB0 = Binary State
+				if (notifyz21LocoFktExt)
+					notifyz21LocoFktExt(word(packet[6] & 0x3F, packet[7]), packet[8], packet[9]);
+			}
+			break;
 		  case LAN_X_GET_FIRMWARE_VERSION:
 			#if defined(SERIALDEBUG)
 			ZDebug.println("X_GET_FIRMWARE_VERSION"); 
@@ -760,11 +807,11 @@ void z21Class::setCVPOMBYTE (uint16_t CVAdr, uint8_t value) {
 //Zustand Rückmeldung non - Z21 device - Busy!
 void z21Class::setLocoStateExt (int Adr) 
 {
-	uint8_t ldata[6];
+/*	uint8_t ldata[6];
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
 	
-	byte data[9]; 
+	byte data[10]; 
 	data[0] = LAN_X_LOCO_INFO;  //0xEF X-HEADER
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
@@ -778,14 +825,17 @@ void z21Class::setLocoStateExt (int Adr)
 	data[3] = data[3] | 0x08; //BUSY!
 		
 	data[4] = (char) ldata[1];	//DSSS SSSS
-	data[5] = (char) ldata[2];    //F0, F4, F3, F2, F1
+	data[5] = (char) ldata[2] & 0x1F;    //F0, F4, F3, F2, F1
 	data[6] = (char) ldata[3];    //F5 - F12; Funktion F5 ist bit0 (LSB)
 	data[7] = (char) ldata[4];  //F13-F20
 	data[8] = (char) ldata[5];  //F21-F28
-
+	data[9] = (char) ldata[8] >> 7;	//F31-F29 only
+*/
 	reqLocoBusy(Adr);
 	
-	EthSend(0, 14, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s);  //Send Loco Status und Funktions to all active Apps 
+	returnLocoStateFull(0, Adr, true);
+	
+	//EthSend(0, 15, LAN_X_Header, data, true, Z21bcAll_s | Z21bcNetAll_s);  //Send Loco Status und Funktions to all active Apps 
 }
 
 //--------------------------------------------------------------------------------------------
@@ -803,7 +853,7 @@ void z21Class::returnLocoStateFull (byte client, uint16_t Adr, bool bc)
 	if (notifyz21LocoState)
 		notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2], uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
 	
-	byte data[9]; 
+	byte data[10]; 
 	data[0] = LAN_X_LOCO_INFO;  //0xEF X-HEADER
 	data[1] = (Adr >> 8) & 0x3F;
 	data[2] = Adr & 0xFF;
@@ -817,24 +867,25 @@ void z21Class::returnLocoStateFull (byte client, uint16_t Adr, bool bc)
 	data[3] = data[3] | 0x08; //BUSY!
 		
 	data[4] = (char) ldata[1];	//DSSS SSSS
-	data[5] = (char) ldata[2];  //F0, F4, F3, F2, F1
+	data[5] = (char) ldata[2] & 0x1F;  //F0, F4, F3, F2, F1
 	data[6] = (char) ldata[3];  //F5 - F12; Funktion F5 ist bit0 (LSB)
 	data[7] = (char) ldata[4];  //F13-F20
 	data[8] = (char) ldata[5];  //F21-F28
+	data[9] = (char) ldata[2] >> 7; 	//F31-F29
 	
 	//Info to all:
 	for (byte i = 0; i < z21clientMAX; i++) {
 		if (ActIP[i].client != client) {
 			if ((ActIP[i].BCFlag & (Z21bcAll_s | Z21bcNetAll_s)) > 0) {
 				if (bc == true)
-					EthSend (ActIP[i].client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to BC Apps
+					EthSend (ActIP[i].client, 15, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to BC Apps
 			}
 		}
 		else { //Info to client that ask:
 			if (ActIP[i].adr == Adr) {
 				data[3] = data[3] & B111;	//clear busy flag!
 			}
-			EthSend (client, 14, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to request App
+			EthSend (client, 15, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to request App
 			data[3] = data[3] | 0x08; //BUSY!
 		}
 	}
@@ -908,11 +959,8 @@ void z21Class::setExtACCInfo(uint16_t Adr, byte State, bool Status) {
 	data[2] = Adr & 0xFF; //Low
 	data[3] = State;
 	data[4] = Status;  //0x00 … Data Valid; 0xFF … Data Unknown
-	if (notifyz21ExtAccessory)
-		notifyz21ExtAccessory(Adr, State);
 	EthSend(0, 0x0A, LAN_X_Header, data, true, Z21bcAll_s);
 }
-
 
 //--------------------------------------------------------------------------------------------
 //Return CV Value for Programming
@@ -974,11 +1022,24 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 	#define cseHighTemperature  0x01 // zu hohe Temperatur 
 	#define csePowerLost  0x02 // zu geringe Eingangsspannung 
 	#define cseShortCircuitExternal 0x04 // am externen Booster-Ausgang 
-	#define cseShortCircuitInternal 0x08 // am Hauptgleis oder Programmiergleis 	
+	#define cseShortCircuitInternal 0x08 // am Hauptgleis oder Programmiergleis 
+	#define cseRCN213 0x20 // Weichenadressierung gem. RCN213	
 */	
 	data[14] = 0x00;  //reserved
-	data[15] = 0x00;  //reserved
-	
+	data[15] = 0x01;  //Capabilitie DCC only
+	if (FSTORAGE.read(CONF1STORE) == 0x01)	//RailCom
+		data[15] |= 0x08;	//RailCom aktiv!
+	data[15] |=	0x10 | 0x20 | 0x40;		//LAN-Befehle 	
+/*	
+	#define capDCC 0x01 // beherrscht DCC
+	#define capMM 0x02 // beherrscht MM
+	//#define capReserved 0x04 // reserviert für zukünftige Erweiterungen
+	#define capRailCom 0x08 // RailCom ist aktiviert
+	#define capLocoCmds 0x10 // akzeptiert LAN-Befehle für Lokdecoder
+	#define capAccessoryCmds 0x20 // akzeptiert LAN-Befehle für Zubehördecoder
+	#define capDetectorCmds 0x40 // akzeptiert LAN-Befehle für Belegtmelder
+	#define capNeedsUnlockCode 0x80 // benötigt Freischaltcode (z21start)
+*/	
 	//only to the request client if or if client = 0 to all that select this message (Abo)!
 	if (client > 0)
 		EthSend (client, 0x14, LAN_SYSTEMSTATE_DATACHANGED, data, false, Z21bcNone);	

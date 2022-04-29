@@ -32,14 +32,30 @@ notifyz21CVWRITE			KEYWORD2
 notifyz21CVPOMWRITEBYTE			KEYWORD2
 notifyz21CVPOMWRITEBIT			KEYWORD2
 notifyz21CVPOMREADBYTE			KEYWORD2
+notifyz21CVPOMACCWRITEBYTE		KEYWORD2
+notifyz21CVPOMACCWRITEBIT		KEYWORD2
+notifyz21CVPOMACCREADBYTE		KEYWORD2
 notifyz21AccessoryInfo			KEYWORD2
 notifyz21Accessory			KEYWORD2
+notifyz21ExtAccessory			KEYWORD2
 notifyz21LocoState			KEYWORD2
-notifyz21LocoFkt			KEYWORD2
+notifyz21LocoFkt				KEYWORD2
+notifyz21LocoFkt0to4			KEYWORD2
+notifyz21LocoFkt5to8			KEYWORD2
+notifyz21LocoFkt9to12			KEYWORD2
+notifyz21LocoFkt13to20			KEYWORD2
+notifyz21LocoFkt21to28			KEYWORD2
+notifyz21LocoFkt29to36			KEYWORD2
+notifyz21LocoFkt37to44			KEYWORD2
+notifyz21LocoFkt45to52			KEYWORD2
+notifyz21LocoFkt53to60			KEYWORD2
+notifyz21LocoFkt61to68			KEYWORD2
+notifyz21LocoFktExt			KEYWORD2
 notifyz21LocoSpeed			KEYWORD2
 notifyz21S88Data			KEYWORD2
 notifyz21Railcom			KEYWORD2
 notifyz21UpdateConf			KEYWORD2
+notifyz21ClientHash		KEYWORD2
 
 # Constants (LITERAL1)
 
