@@ -47,6 +47,7 @@
 			   modify LAN_X_LOCO_INFO to FW Version 1.42
 	- 25.04.22 add LAN_X_SET_LOCO_FUNCTION_GROUP and LAN_X_SET_LOCO_BINARY_STATE
 			   fix SET_EXT_ACCESSORY and EXT_ACCESSORY_INFO
+	- 29.04.22 add WLANMaus CV Read and write special functions		   
 */
 
 // include types & constants of Wiring core API

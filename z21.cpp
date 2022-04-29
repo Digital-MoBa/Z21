@@ -159,6 +159,12 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			}
 			//---------------------- Switch DB0 ENDE ---------------------------	
 			break;  //ENDE DB0
+		  case LAN_X_DCC_READ_REGISTER: 
+			if (packet[5] == 0x15) {  //DB0	- SPECIAL: WLANMaus CV Read!
+				if (notifyz21CVREAD)
+					notifyz21CVREAD(0, packet[6]-1); //CV_MSB, CV_LSB
+			}
+			break;
 		  case LAN_X_CV_READ:
 			if (packet[5] == 0x11) {  //DB0
 			  #if defined(SERIALDEBUG)
@@ -166,6 +172,10 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			  #endif
 			  if (notifyz21CVREAD)
 				notifyz21CVREAD(packet[6], packet[7]); //CV_MSB, CV_LSB
+			}
+			if (packet[5] == 0x16) {  //DB0	- SPECIAL: WLANMaus CV Write!
+				if (notifyz21CVWRITE)
+					notifyz21CVWRITE(0, packet[6]-1, packet[7]); //CV_MSB, CV_LSB, value
 			}
 			break;             
 		  case LAN_X_CV_WRITE: 
@@ -177,7 +187,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 				notifyz21CVWRITE(packet[6], packet[7], packet[8]); //CV_MSB, CV_LSB, value
 			}
 			break;
-		  case LAN_X_CV_POM: {	//X-Header 
+		  case LAN_X_CV_POM: {	//X-Header = 0xE6
 		    uint16_t CVAdr = ((packet[8] & B11) << 8) + packet[9];
 			byte value = packet[10];
 			if (packet[5] == 0x30) {  //DB0 = LAN_X_CV_POM
