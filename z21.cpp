@@ -256,10 +256,12 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			//Check if Broadcast Flag is correct set up?
 			bool BCset = true;
 			for (byte i = 0; i < z21clientMAX; i++) {
-				if (ActIP[i].client == client && ActIP[i].BCFlag == 0) {
-					BCset = false;
-					break;
+			  if (ActIP[i].client == client) {
+			        if (ActIP[i].BCFlag == 0) {
+				  BCset = false;
 				}
+				break;
+			  }
 			}
 			//Fall to next if no BCFlag is set!
 			if (BCset)
