@@ -179,7 +179,7 @@ private:
   // Functions:
   void returnLocoStateFull(byte client, uint16_t Adr, bool bc); // Antwort auf Statusabfrage
   void EthSend(byte client, unsigned int DataLen, unsigned int Header, byte *dataString,
-               boolean withXOR, byte BC);
+               bool withXOR, byte BC);
   byte getLocalBcFlag(unsigned long flag); // Convert Z21 LAN BC flag to local stored flag
   void clearIP(byte pos);                  // delete the stored client
   void clearIPSlots();                     // delete all stored clients

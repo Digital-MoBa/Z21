@@ -1196,7 +1196,7 @@ void z21Class::sendSystemInfo(byte client, uint16_t maincurrent, uint16_t mainvo
 
 //--------------------------------------------------------------------------------------------
 void z21Class::EthSend(byte client, unsigned int DataLen, unsigned int Header, byte *dataString,
-                       boolean withXOR, byte BC)
+                       bool withXOR, byte BC)
 {
   byte data[DataLen]; // z21 send storage
 
