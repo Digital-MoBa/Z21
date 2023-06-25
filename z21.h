@@ -53,13 +53,21 @@
     - 29.04.22 add WLANMaus CV Read and write special functions
 */
 
+#if !defined(HAVE_WPROGRAM_H) && defined(__has_include)
+#  if __has_include(<WProgram.h>)
+#    define HAVE_WPROGRAM_H
+#  endif
+#endif
 // include types & constants of Wiring core API
 #if defined(WIRING)
 #  include <Wiring.h>
 #elif ARDUINO >= 100
 #  include <Arduino.h>
-#else
+#elif !defined(DO_NOT_USE_WPROGRAM_H) && defined(HAVE_WPROGRAM_H)
 #  include <WProgram.h>
+#else
+#  include <stdint.h>
+typedef uint8_t byte;
 #endif
 
 //--------------------------------------------------------------
