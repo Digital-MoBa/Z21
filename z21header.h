@@ -3,7 +3,7 @@
  *  Created on: 16.04.2016
  *      Author: Philipp Gahtow
  *
- *	19.07.16 Add X-Bus (XpressNet)
+ *  19.07.16 Add X-Bus (XpressNet)
  *  19.06.17 Add CAN and new BC-Flags
  *
  */

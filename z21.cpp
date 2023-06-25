@@ -1,13 +1,13 @@
 /*
 *****************************************************************************
-*		z21.cpp - library for Roco Z21 LAN protocoll
-*		Copyright (c) 2013-2022 Philipp Gahtow  All right reserved.
+*       z21.cpp - library for Roco Z21 LAN protocoll
+*       Copyright (c) 2013-2022 Philipp Gahtow  All right reserved.
 *
 *
 *****************************************************************************
 * IMPORTANT:
 *
-* 	Please contact ROCO Inc. for more details.
+*   Please contact ROCO Inc. for more details.
 *****************************************************************************
 */
 
@@ -165,7 +165,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
       break; // ENDE DB0
     case LAN_X_DCC_READ_REGISTER:
       if (packet[5] == 0x15)
-      { // DB0	- SPECIAL: WLANMaus CV Read!
+      { // DB0 - SPECIAL: WLANMaus CV Read!
         if (notifyz21CVREAD)
           notifyz21CVREAD(0, packet[6] - 1); // CV_MSB, CV_LSB
       }
@@ -180,7 +180,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
           notifyz21CVREAD(packet[6], packet[7]); // CV_MSB, CV_LSB
       }
       if (packet[5] == 0x16)
-      { // DB0	- SPECIAL: WLANMaus CV Write!
+      { // DB0 - SPECIAL: WLANMaus CV Write!
         if (notifyz21CVWRITE)
           notifyz21CVWRITE(0, packet[6] - 1, packet[7]); // CV_MSB, CV_LSB, value
       }
@@ -270,9 +270,10 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
       // bool TurnOnOff = bitRead(packet[7],3);  //Spule EIN/AUS
       if (notifyz21Accessory)
       {
+        //                 Addresse                       Links/Rechts
         notifyz21Accessory((packet[5] << 8) + packet[6], bitRead(packet[7], 0),
-                           bitRead(packet[7], 3));
-      } //	Addresse					Links/Rechts			Spule EIN/AUS
+                           bitRead(packet[7], 3)); // Spule EIN/AUS
+      }
       // Check if Broadcast Flag is correct set up?
       bool BCset = true;
       for (byte i = 0; i < z21clientMAX; i++)
@@ -449,7 +450,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
     case 0x73:
 // LAN_X_??? WLANmaus periodische Abfrage:
 // 0x09 0x00 0x40 0x00 0x73 0x00 0xFF 0xFF 0x00
-// length X-Header	XNet-Msg			  speed?
+// length    X-Header  XNet-Msg  speed?
 #if defined(SERIALDEBUG)
       ZDebug.println("LAN-X_WLANmaus");
 #endif
@@ -460,9 +461,10 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
     default:
 #if defined(SERIALDEBUG)
       ZDebug.print("UNKNOWN_LAN-X_COMMAND");
-      // for (byte i = 0; i < packet[0]; i++) {
-      //	ZDebug.print(" 0x");
-      //	ZDebug.print(packet[i], HEX);
+      // for (byte i = 0; i < packet[0]; i++)
+      // {
+      //   ZDebug.print(" 0x");
+      //   ZDebug.print(packet[i], HEX);
       // }
       ZDebug.println();
 #endif
@@ -580,9 +582,9 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
     data[8] = 0x00;
     data[9] = 0x00;
     /*
-    data[10] = 0x00;	//UINT8 Reserved1 experimentell, siehe Anmerkung
-    data[11] = 0x00;	//UINT8 Reserved2 experimentell, siehe Anmerkung
-    data[12] = 0x00;	//UINT8 Reserved3 experimentell, siehe Anmerkung
+    data[10] = 0x00; // UINT8 Reserved1 experimentell, siehe Anmerkung
+    data[11] = 0x00; // UINT8 Reserved2 experimentell, siehe Anmerkung
+    data[12] = 0x00; // UINT8 Reserved3 experimentell, siehe Anmerkung
     */
     EthSend(client, 0x0E, LAN_RAILCOM_DATACHANGED, data, false, Z21bcNone);
     break;
@@ -832,10 +834,11 @@ FSTORAGE.commit();
   default:
 #if defined(SERIALDEBUG)
     ZDebug.print("UNKNOWN_COMMAND");
-    //	for (byte i = 0; i < packet[0]; i++) {
-    //		ZDebug.print(" 0x");
-    //		ZDebug.print(packet[i], HEX);
-    //	}
+    // for (byte i = 0; i < packet[0]; i++)
+    // {
+    //   ZDebug.print(" 0x");
+    //   ZDebug.print(packet[i], HEX);
+    // }
     ZDebug.println();
 #endif
     data[0] = 0x61;
@@ -919,31 +922,34 @@ void z21Class::setCVPOMBYTE(uint16_t CVAdr, uint8_t value)
 // Zustand Rückmeldung non - Z21 device - Busy!
 void z21Class::setLocoStateExt(int Adr)
 {
-  /*	uint8_t ldata[6];
-      if (notifyz21LocoState)
-          notifyz21LocoState(Adr, ldata); //uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2],
-     uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
+  /*
+  uint8_t ldata[6];
+  if (notifyz21LocoState)
+    notifyz21LocoState(Adr, ldata); // uint8_t Steps[0], uint8_t Speed[1], uint8_t F0[2],
+                                    // uint8_t F1[3], uint8_t F2[4], uint8_t F3[5]
 
-      byte data[10];
-      data[0] = LAN_X_LOCO_INFO;  //0xEF X-HEADER
-      data[1] = (Adr >> 8) & 0x3F;
-      data[2] = Adr & 0xFF;
-      // Fahrstufeninformation: 0=14, 2=28, 4=128
-      if ((ldata[0] & 0x03) == DCCSTEP14)
-          data[3] = 0;	// 14 steps
-      if ((ldata[0] & 0x03) == DCCSTEP28)
-          data[3] = 2;	// 28 steps
-      if ((ldata[0] & 0x03) == DCCSTEP128)
-          data[3] = 4;	// 128 steps
-      data[3] = data[3] | 0x08; //BUSY!
+  byte data[10];
+  data[0] = LAN_X_LOCO_INFO; // 0xEF X-HEADER
+  data[1] = (Adr >> 8) & 0x3F;
+  data[2] = Adr & 0xFF;
 
-      data[4] = (char) ldata[1];	//DSSS SSSS
-      data[5] = (char) ldata[2] & 0x1F;    //F0, F4, F3, F2, F1
-      data[6] = (char) ldata[3];    //F5 - F12; Funktion F5 ist bit0 (LSB)
-      data[7] = (char) ldata[4];  //F13-F20
-      data[8] = (char) ldata[5];  //F21-F28
-      data[9] = (char) ldata[8] >> 7;	//F31-F29 only
+  // Fahrstufeninformation: 0=14, 2=28, 4=128
+  if ((ldata[0] & 0x03) == DCCSTEP14)
+    data[3] = 0; // 14 steps
+  if ((ldata[0] & 0x03) == DCCSTEP28)
+    data[3] = 2; // 28 steps
+  if ((ldata[0] & 0x03) == DCCSTEP128)
+    data[3] = 4;            // 128 steps
+  data[3] = data[3] | 0x08; // BUSY!
+
+  data[4] = (char)ldata[1];        // DSSS SSSS
+  data[5] = (char)ldata[2] & 0x1F; // F0, F4, F3, F2, F1
+  data[6] = (char)ldata[3];        // F5 - F12; Funktion F5 ist bit0 (LSB)
+  data[7] = (char)ldata[4];        // F13-F20
+  data[8] = (char)ldata[5];        // F21-F28
+  data[9] = (char)ldata[8] >> 7;   // F31-F29 only
   */
+
   reqLocoBusy(Adr);
 
   returnLocoStateFull(0, Adr, true);

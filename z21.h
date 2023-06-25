@@ -66,7 +66,7 @@
 #define z21Port 21105 // local port to listen on
 
 //**************************************************************
-// #define SERIALDEBUG		//Serial Debug
+// #define SERIALDEBUG //Serial Debug
 
 #if defined(SERIALDEBUG)
 #  define ZDebug Serial // Port for the Debugging
@@ -97,8 +97,8 @@ HwType:
 #define CONFz21SnLSB 1 // 0xE8
 //**************************************************************
 // Store Z21 configuration inside EEPROM:
-#define CONF1STORE      50    //(10x Byte)	- Prog, RailCom, etc.
-#define CONF2STORE      60    //(15x Byte)	- Voltage: Prog, Rail, etc.
+#define CONF1STORE      50    //(10x Byte) - Prog, RailCom, etc.
+#define CONF2STORE      60    //(15x Byte) - Voltage: Prog, Rail, etc.
 #define CLIENTHASHSTORE 0x200 // 512 Start where Client-Hash is stored
 
 //--------------------------------------------------------------

@@ -1,13 +1,13 @@
 /*
 *****************************************************************************
-*		z21nvs.cpp - library for emulate EEPROM on Non-Volatile Storage
-*		Copyright (c) 2021 Philipp Gahtow  All right reserved.
+*       z21nvs.cpp - library for emulate EEPROM on Non-Volatile Storage
+*       Copyright (c) 2021 Philipp Gahtow  All right reserved.
 *
 *
 *****************************************************************************
 * IMPORTANT:
 *
-* 	Please contact ROCO Inc. for more details.
+*   Please contact ROCO Inc. for more details.
 *****************************************************************************
 */
 
