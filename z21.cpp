@@ -188,7 +188,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			}
 			break;
 		  case LAN_X_CV_POM: {	//X-Header = 0xE6
-		    uint16_t CVAdr = ((packet[8] & B11) << 8) + packet[9];
+			uint16_t CVAdr = ((packet[8] & 0b11) << 8) + packet[9];
 			byte value = packet[10];
 			if (packet[5] == 0x30) {  //DB0 = LAN_X_CV_POM
 			  uint16_t Adr = ((packet[6] & 0x3F) << 8) + packet[7];
@@ -341,7 +341,7 @@ void z21Class::receive(uint8_t client, uint8_t *packet)
 			else if (packet[5] == LAN_X_SET_LOCO_FUNCTION) {  //DB0 = 0xF8
 			  //LAN_X_SET_LOCO_FUNCTION  Adr_MSB        Adr_LSB            Type (00=AUS/01=EIN/10=UM)      Funktion
 			  if (notifyz21LocoFkt)
-				notifyz21LocoFkt(word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & B00111111); 
+				notifyz21LocoFkt(word(packet[6] & 0x3F, packet[7]), packet[8] >> 6, packet[8] & 0b00111111);
 			  //uint16_t Adr, uint8_t type, uint8_t fkt
 			}
 			//LAN_X_SET_LOCO_FUNCTION_GROUP:
@@ -895,7 +895,7 @@ void z21Class::returnLocoStateFull (byte client, uint16_t Adr, bool bc)
 		}
 		else { //Info to client that ask:
 			if (ActIP[i].adr == Adr) {
-				data[3] = data[3] & B111;	//clear busy flag!
+				data[3] = data[3] & 0b111;	//clear busy flag!
 			}
 			EthSend (client, 15, LAN_X_Header, data, true, Z21bcNone);  //Send Loco status und Funktions to request App
 			data[3] = data[3] | 0x08; //BUSY!
